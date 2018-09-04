@@ -1,0 +1,848 @@
+%% 第一题 投资组合优化 1
+load('q1dataof.mat')
+price=[Stk1 Stk2 Stk3 Stk4 Stk5 Stk6 Stk7 Stk8 Stk9 Stk10];%牛市
+logreturn=100*diff(log(price));
+logreturn(any(isnan(logreturn), 2),:) = [];
+[index,~]=find(logreturn==Inf);
+logreturn(index,:)=[];
+[Index,~]=find(logreturn==-Inf);
+logreturn(Index,:)=[];
+e=mean(logreturn,1)';
+V=cov(logreturn);
+[wp,varp]=meanvar(e,V,0.2)
+out=graphmeanvar( logreturn)%允许卖空
+Out=shortmeanvar(logreturn)%不允许卖空
+subplot(2,2,1);
+plot(out.sigmap, out.rp,'co');
+subplot(2,2,2);
+plot(Out.sigma, Out.Rp,'co');
+subplot(2,2,3);
+plot(out.sigmap, out.rp,'co');
+hold on
+plot(Out.sigma, Out.Rp,'co');
+hold off
+%第一张图允许卖空情况下的投资组合前沿，第二张图为不允许卖空下的投资组合前沿，最后一张为对比图
+%熊市
+load('data1bear.mat')
+Logreturn=100*diff(log(PRICE));
+Logreturn(any(isnan(Logreturn), 2),:) = [];
+[index,~]=find(Logreturn==Inf);
+Logreturn(index,:)=[];
+[Index,~]=find(Logreturn==-Inf);
+Logreturn(Index,:)=[];
+a=mean(Logreturn,1)';
+W=cov(Logreturn);
+[wp,varp]=meanvar(a,W,0.2)
+out=graphmeanvar( logreturn)%允许卖空
+Out=shortmeanvar(logreturn)%不允许卖空
+subplot(2,2,1);
+plot(out.sigmap, out.rp,'co');
+subplot(2,2,2);
+plot(Out.sigma, Out.Rp,'co');
+subplot(2,2,3);
+plot(out.sigmap, out.rp,'co');
+hold on
+plot(Out.sigma, Out.Rp,'co');
+hold off
+%第一张图允许卖空情况下的投资组合前沿，第二张图为不允许卖空下的投资组合前沿，最后一张为对比图
+%允许卖空公式
+function [wp,varp]=meanvar(e,V,rp)
+%. 求解投资组合权重
+%输入：e每个资产的预期收益率组成的收益率列向量
+%输入：V 收益率的方差协方差矩阵
+%输入：rp为投资组合的预期回报率
+%输出: wp为投资组合权重，列向量
+%输出: varp为投资组合的方差
+M=length(e);
+I=ones(M,1);
+A=I'*inv(V)*e;
+B=e'*inv(V)*e;
+C=I'*inv(V)*I;
+D=B*C-A^2;
+g=(B*(inv(V)*I)-A*(inv(V)*e))/D;
+h=(C*(inv(V)*e)-A*(inv(V)*I))/D;
+wp=g+h*rp;
+varp=wp'*V*wp;
+%不允许卖空公式
+function Out=shortmeanvar(logreturn)
+%purpose:给定M个资产价格矩阵，根据Mean-variance模型确定投资权重
+%输入:M种资产,N个观测值的价格矩阵,N*M矩阵
+%输出：每支资产的权重组成的列向量wp
+% 1. 将原始价格矩阵转化为收益率矩阵
+%logreturn=100*diff(log(price));
+ % 2. 求解收益率数据的均值向量与方差协方差矩阵
+e=mean(logreturn,1)';%对应41页中公式(3.8.1) e,此时e为列向量
+V=cov(logreturn);%对应41页中公式(3.8.1) V
+Rp=linspace(min(e),max(e),101)';
+M=size(logreturn,2)
+wp=zeros(M,101);
+for i=1:101;
+  [wp(:,i),fval(i)]=quadprog(V,zeros(M,1),-eye(M,M),zeros(M,1),[ones(1,M);e'],[1;Rp(i)]);
+end
+sigma=sqrt(2*fval);
+plot(sigma, Rp,'co');
+Out.Rp=Rp;
+Out.wp=wp;
+Out.sigma=sigma;
+xlabel('标准差'); % x轴注解 
+ylabel('收益率'); % y轴注解 
+title('不允许卖空条件下的投资组合前沿'); % 图形标题
+%不允许卖空画投资组合前沿公式
+function out=graphmeanvar( logreturn)
+%purpose:给定M个资产价格矩阵，根据Mean-variance模型确定投资权重，参考教材《金融经济学基础》  黄奇辅  
+%输入:M种资产,N个观测值的价格矩阵,N*M矩阵
+%输出：每支资产的权重组成的列向量wp
+% 1. 将原始价格矩阵转化为收益率矩阵
+%Logreturn=logreturn
+ % 2. 求解收益率数据的均值向量与方差协方差矩阵
+e=mean(logreturn,1)';%对应41页中公式(3.8.1) e
+V=cov(logreturn);%对应41页中公式(3.8.1) V
+rp=linspace(min(e),max(e),101)';
+varp=zeros(101,1);
+wp=zeros(size(logreturn,2),101);
+for i=1:101;
+  [wp(:,i),varp(i)]=meanvar(e,V,rp(i));
+end
+sigmap=varp.^(0.5);
+plot(sigmap, rp,'co');
+out.rp=rp;
+out.varp=varp;
+out.wp=wp;
+out.sigmap=sigmap;
+out.total=[rp';varp';wp];
+xlabel('标准差'); % x轴注解 
+ylabel('收益率'); % y轴注解 
+title('允许卖空条件下的投资组合前沿'); % 图形标题
+%% 第一题 投资组合优化 2
+load('ClosePrice.mat')
+A=[601318  2702
+600016  1813
+601166  2677
+600036  1828
+600519  2235
+601328  2703
+600000  1798
+600837  2541
+601288  2698
+601169  2679
+600887  2590
+601398  2712
+601601  2724
+601668  2734
+600104  1887
+601988  2779
+601688  2738
+601818  2754
+600048  1832
+600028  1822
+600518  2234
+600999  2638
+601390  2711
+601006  2644
+601857  2755
+601628  2730
+601186  2682
+600637  2344
+600050  1833
+601985  2778
+600795  2500
+600111  1894
+600010  1808
+601088  2660
+601211  2687
+600893  2596
+601336  2705
+600958  2605
+600109  1892
+601669  2735
+601377  2709
+601998  2784
+600029   1823
+601800  2751
+601788   2747
+601727   2744
+600015   1811
+601919  2769
+600018   1818
+600585   2293];%第一列是找到的50ETF的代码，第二列是代码在原始文件中的位置
+X=ClosePrice(end-1000:end,A(:,2));
+lr=diff(log(X)); %求出对数收益率%
+lr(:,(find(any(isnan(lr))==1))')=[];
+n=size(lr,2); %求出具体股票只数%
+Var=var(lr);%求粗每只股票的方差weight
+[~, index]=sort(Var,'descend');
+newLr=lr(:,index);
+newvarMat=cov(newLr);
+eWeight=zeros(n,1);
+eOpti=zeros(n,1);
+ret=mean(newLr);
+
+for i=1:n
+ v=1/i*ones(1,i);   
+eWeight(i)=sqrt(v*newvarMat(1:i,1:i)*v');
+V=cov(newLr(1:i));
+[wp,varp]=meanvar(ret(1:i)',V,mean(ret(1:i)));
+eOpti(i)=sqrt(varp);
+end
+plot(1:n,eWeight,'k-')
+hold on
+plot(1:n,eOpti)
+
+
+%% 第一题 投资组合优化 3
+load('xzq3data.mat')
+price=Price(1:120,:);
+logreturn=100*diff(log(price));
+logreturn(any(isnan(logreturn), 2),:) = [];
+[index,~]=find(logreturn==Inf);
+logreturn(index,:)=[];
+[Index,~]=find(logreturn==-Inf);
+logreturn(Index,:)=[];
+Std=zeros(1,30);
+for i=1:30
+    Std(1,i)=std(logreturn(:,i));
+end
+sigma=sqrt(252)*Std;%年化波动率
+Q=zeros(1,30);
+for a=1:30
+    Q(1,a)=Std(1,a)/sum(Std);
+end
+holdreturn=Price(121,:)-Price(200,:)
+averagereturn=Q*holdreturn';
+holdprice=Price(121:200,:);
+holdlogreturn=100*diff(log(holdprice));
+holdlogreturn(79,:)=[];
+holdstd=zeros(1,30);
+for j=1:30
+    holdstd(1,j)=std(holdlogreturn(:,j));
+end
+PRICE=Q*holdprice'
+Holdlogreturn=100*diff(log(PRICE));
+HoldSTD=std(Holdlogreturn);
+e=mean(holdlogreturn,1)';
+V=cov(holdlogreturn);
+rp=averagereturn;
+M=size(holdlogreturn,2)
+wp=zeros(M,1);
+[wp,fval]=quadprog(V,zeros(M,1),-eye(M,M),zeros(M,1),e',rp);
+
+%% 第二题 指数基金复制策略 1
+function weight=strIndexFund(IR,R,lamda,limit)
+%IR：指数收益率随时间变化的矩阵 T*1
+%R：跟踪指数的成份股的收益率随时间变化的矩阵,T*n
+%limit ：不同股票的权重的下限和上限 n行2列，第一列是下限
+[T,n]=size(R);
+H=2*lamda*R'*R;
+f=-2*lamda*R'*IR+(lamda-1)*R'*ones(T*1);
+Aeq=ones(1,n);
+beq=1;
+A=-eye(n);
+b=zeros(n,1);
+lb=limit(:,1);
+ub=limit(:,2);
+weight=quadprog(H,f,A,b,Aeq,beq,lb,ub)
+end
+%% 第三题 动量和反转策略
+load('PRICE3')
+Price=price';
+M=zeros(10,885);
+for i=1:885
+for j=1:25
+if Price(j,i)==0
+M(j,i)=1;
+else
+M(j,i)=0;
+end
+end
+end
+K=zeros(1,885);
+for i=1:885
+K(1,i)=sum(M(:,i));
+end
+A=find(K==0)
+P=zeros(25,784);
+for a=1:784
+  P(:,a)=Price(:,A(a));
+end
+PRICE=P(:,1:780);
+MomReturn = mommatrix(PRICE,390)%结果显示，使用三天的动量因子排序，买入winner组合，卖出loser组合持有六天收益率最高。
+%mommatrix公式
+function MomReturn = mommatrix(price,p)
+%J=3,6,9,12 K=3,6,9,12
+for J=3:3:12
+    for K=3:3:12
+        Momreturnmean(J/3,K/3) = mommean(price,J,K,p)
+    end
+end
+end
+%单只股票动能策略公式
+function out=momSingle(PRICE,p,K,J)
+%price J+K+1*2000 J=6 K=3 10*2000
+[m,n]=size(PRICE);
+Rhist=(PRICE(J+1,:)-PRICE(1,:))./PRICE(1,:);%加判断 涨停不买入
+rhist=Rhist';
+[~,index]=sortrows(rhist);
+priceOrder=zeros(m,n);
+for i=1:n
+    priceOrder(:,i)=PRICE(:,index(i));
+end
+rhold=(priceOrder(end,:)-priceOrder(J+1,:))./priceOrder(J+1,:);%跌停不卖出
+rholdloser=mean(rhold(1:p),2);
+rholdwinner=mean(rhold(end-p+1:end),2);
+out.rloserannual=(1+rholdloser)^(252/K)-1
+out.rwinnerannual=(1+rholdwinner)^(252/K)-1
+out.rmktannual=out.rwinnerannual-out.rloserannual
+end
+
+function Momreturnmean = mommean(PRICE,J,K,p)
+%UNTITLED5 Summary of this function goes here
+%   Detailed explanation goes here
+M=size(PRICE,1);
+rmktAnnual=zeros(M-K-J,1);
+for i=1:M-K-J
+    out=momSingle(PRICE(i:i+K+J,:),p,K,J)
+    rmktAnnual(i)=out.rmktannual;
+end
+Momreturnmean=mean(rmktAnnual)
+%% 第四题 统计套利策略
+load('ClosePrice.mat')
+Ret=100*diff(log(ClosePrice));
+Date(1)=[];
+O=find(any(isnan(Ret))==1);
+Stk(O,:)=[];
+Ret(:,(find(any(isnan(Ret))==1)'))=[];
+COV=corrcoef(Ret);
+[m,n]=find(COV>=0.7&COV~=1);%找到第532只和第1只相关系数大于0.7
+code1=Stk(532,:);
+code2=Stk(1,:);
+R532=Ret(:,532);
+R1=Ret(:,1);
+Y=R532;
+X=[ones(2288,1) R1];
+theta=inv(X'*X)*X'*Y;
+error=Y-X*theta;
+estd=std(error);
+%egcitest(error)
+openUpLine=1.5*estd*ones(2288,1);
+openDownLine=-1.5*estd*ones(2288,1);
+plot(error(1:50))
+hold on
+plot(openUpLine(1:50))
+hold on
+plot(openDownLine(1:50))
+hold on 
+plot(zeros(50,1))
+num=find(error>1.5*estd,1,'first');
+openDay=Date(num);
+openPoint=error(num);
+newError=error(num+1:end);
+num2=find(newError<0.1&newError>-0.1,1,'first');
+closeDay=Date(num+num2);
+closePoint=error(num+num2);
+rf=0.05;
+retNet=openPoint-closePoint-rf*num2/365;
+plot(num,openPoint,'c*')
+plot(num+num2,closePoint,'c*')
+
+
+%% 第五题 事件驱动策略
+load('eventstudydata.mat')
+R=[GUJI;EVENT];
+[M,N]=size(R);
+[L1,~]=size(GUJI);
+theta=zeros(2,N);
+AR=zeros(M-L1,N)
+CAR=zeros(1,N);
+sigma2error=zeros(N,1);
+Omega=zeros(M-L1,M-L1,N);
+pValueAR=zeros(M-L1,N);
+CARSigma2=zeros(1,N);
+for i=1:N
+    Y=GUJI(:,i);
+    X=[ones(L1,1) rm_rf(:,1)];
+    theta(:,i)=inv(X'*X)*X'*Y;
+    sigma2error(i)=((Y-X*theta(:,i))'*(Y-X*theta(:,i)))/(L1-2);
+    AR(:,i)=EVENT(:,i)-[ones(M-L1,1) RmEvent]*theta(:,i);
+    CAR(i)=sum(AR(:,i),1);
+    regressorEvent=[ones(M-L1,1) RmEvent]; %有一点疑问
+    Omega(:,:,i)=eye(M-L1)*sigma2error(i)+regressorEvent*inv(X'*X)*regressorEvent'*sigma2error(i);
+    CARSigma(i)=ones(1,M-L1)*Omega(:,:,i)*ones(M-L1,1);
+    pValueAR(:,i)=2*normcdf(abs(AR(:,i)./sqrt(diag(Omega(:,:,i)))),0,1);
+end
+CAR(any(isnan(CAR), 2),:) =0;
+CAR./sqrt(CARSigma2);
+V=mean(Omega,3)/N;
+CAARSigma2=ones(1,M-L1)*V*ones(M-L1,1);%CAAR的方差
+CAAR=mean(CAR,2);
+J1=CAAR/sqrt(CAARSigma2);
+
+
+%% 第六题 三因子模型 1&2&3
+load('dqMv.mat')
+SStk=Stk;
+S=FctMat;
+D1=Date;
+load('pb_new.mat')
+PbStk=Stk;
+Pb=FctMat;
+D2=Date;
+load('ClosePrice.mat')
+D3=Date;
+PriceStk=Stk;
+load('DateMon.mat')
+%去掉有缺失值的股票，删除主数据部分列
+M=find(any(isnan(Pb))==1);%
+PbStk(M,:)=[];
+Pb(:,(find(any(isnan(Pb))==1)'))=[];
+N=find(any(isnan(S))==1);
+SStk(N,:)=[];
+S(:,(find(any(isnan(S))==1)'))=[];
+Ret=diff(log(ClosePrice));
+D3(1)=[];
+O=find(any(isnan(Ret))==1);
+PriceStk(O,:)=[];
+Ret(:,(find(any(isnan(Ret))==1)'))=[];
+%将月底时间对应上，因为求得是月度数据,删除主数据部分行
+[DD1,num1]=intersect(D1,DateMon);
+[DD2,num2]=intersect(D2,DateMon);
+[DD3,num3]=intersect(D3,DateMon);
+%查看发现,由于计算收益率，损失了第一个值，正好处于月末位置，这里为了简便，直接删，如果编写程序，需要再次进行intersect
+%得到的是从2007年1月底开始的113个月度数据
+S=S(num1,:);
+S(1,:)=[];
+Pb=Pb(num2,:);
+Pb(1,:)=[];
+Ret=Ret(num3,:);
+%选出交合部分的股票
+[C,D]=intersect(PbStk(:,1),SStk(:,1));
+[A,B]=intersect(SStk(:,1),C);
+SStk=SStk(B,:);
+S=S(:,B);%只做一次交合的原因是发现交合的结果恰好就是PbStk
+[E,F]=intersect(PbStk(:,1),PriceStk(:,1));
+[G,H]=intersect(PriceStk(:,1),E);
+Ret=Ret(:,H);
+PriceStk=PriceStk(H,:);
+%处理交叉的原数据完成，下面正式进入三因子
+data=cell(113,2);%113个月，左边是小size，右边大size
+SMB=zeros(113,1);
+HML=zeros(113,1);
+n=floor(1207/2);
+m1=floor(n*0.3);
+m2=floor(n*0.4);
+for i=1:113
+data{i,1}=cell(3,1);
+data{i,2}=cell(3,1);
+[~,Y]=sort(S(i,:));
+
+temp1=Y(1:n);%暂时存放小size的序号
+temp2=Y(n+1:end);%暂时存放大size序号
+smallSize_pb=Pb(i,temp1);
+bigSize_pb=Pb(i,temp2);
+smallSize_Ret=Ret(i,temp1);
+bigSize_Ret=Ret(i,temp2);
+
+[~,index1]=sort(smallSize_pb);%对小size股票中按pb排序
+data{i,1}{1,1}=smallSize_Ret(:,index1(1:m1));%smallSizeLowpb_Ret
+data{i,1}{2,1}=smallSize_Ret(:,index1(m1+1:m1+m2));%smallSizeMidpb_Ret
+data{i,1}{3,1}=smallSize_Ret(:,index1(m1+m2+1:end));%smallSizeHighpb_Ret
+[~,index2]=sort(bigSize_pb)%对大size股票中按pb排序
+data{i,2}{1,1}=bigSize_Ret(:,index2(1:m1));%bigSizeLowpb_Ret
+data{i,2}{2,1}=bigSize_Ret(:,index2(m1+1:m1+m2));%bigSizeMidpb_Ret
+data{i,2}{3,1}=bigSize_Ret(:,index2(m1+m2+1:end));%bigSizeHighpb_Ret
+SMB(i)=(mean(data{i,1}{1,1})+mean(data{i,1}{2,1})+mean(data{i,1}{3,1})-mean(data{i,2}{1,1})-mean(data{i,2}{2,1})-mean(data{i,2}{3,1}))/3;
+HML(i)=(mean(data{i,1}{3,1})+mean(data{i,2}{3,1})-mean(data{i,1}{1,1})-mean(data{i,2}{1,1}))/2;
+end
+H=zeros(12,1);
+for h=1:12
+H(h)=mean(SMB(h:12:end))
+end
+%第2题
+ave_SMB=mean(SMB);
+ave_HML=mean(HML);
+std_SMB=std(SMB);
+std_HML=std(HML);
+t_SMB=ave_SMB/std_SMB;
+t_HML=ave_HML/std_HML;
+pValue_SMB=2*tcdf(-abs(t_SMB),113-1);
+pValue_HML=2*tcdf(-abs(t_HML),113-1);
+%第3题
+load('RmtRf.mat')
+Rmt_Rf=Rmt_Rf(156:268);%如果认为rm-rf中的月份代表整个月份的值，否则，若认为是月初的值，则往后延
+
+COV=cov([SMB,HML,Rmt_Rf]);
+
+
+%% 四、CAPM模型的时序检验 1
+ load('RmtRf.mat')
+ %先将此认为是已经经过对数化处理标准收益率形式
+aperiodicInd= [420.44
+446.61
+458.46
+458.2
+478.32
+589.15
+643.47
+649.66
+645.32
+694.33
+742.77
+744.76
+746.6
+909.28
+1050.01
+1169.87
+1548.86
+1708.8
+1400.49
+1673.87
+1768.42
+1854.88
+1604.36
+1539.21
+1892.5
+1726.63
+1878.93
+1534.58
+1419.88
+1462.33
+1150.04
+1210.83
+938.4
+926.55
+739.35
+877.98
+1000.01
+1061.56
+1092.52
+1228.67
+1422.86
+1403.64
+1543.22
+1584.27
+1580.06
+1689.84
+1970.26
+2339.36
+2234.38
+2227.5
+2372.19
+2313.25
+2406.97
+2349.57
+2084.81
+2171.97
+2554.18
+2702.07
+2692.05
+3027.21
+2827.49
+2575.56
+2753.63
+2655.79
+2601.68
+2392.23
+2411.35
+2508.73
+2410.98
+2126.78
+2171.65
+2148.08
+1854.58
+1792.28
+1949.35
+1840.77
+1947.38
+2168.24
+2232.53
+2189.71
+2242.41
+2261.06
+2219.39
+1986.88
+2178.37
+2379.79
+2587.38
+2436.95
+2328.64
+2542.25
+1985.66
+2054.86
+2402.97
+2509.03
+2490.85
+2775.69
+2584.78
+2642.29
+2575.63
+2711.99
+2818.04
+3136.21
+2957.43
+4431.87
+5300.25
+5789.61
+5936.44
+6032.26
+5426.99
+5661.93
+7231.75
+9376.66
+13360.65
+20796.13
+18234.99
+15009.31
+12677.86
+12073.21
+13703.29
+14233.15
+15536.63
+11320.99
+10713.18
+12195.94
+12809.52
+12637.5
+13014.88
+13697.73
+13904.69
+13893.85
+];
+periodInd=[1020.09
+1097.93
+1156.08
+1153.32
+1142.28
+1395.06
+1399.74
+1277.76
+1306.38
+1321.7
+1514.01
+1818.43
+2153.75
+2651.39
+2901.7
+3172.49
+4101.16
+4413.33
+3857.95
+4709.67
+5930.09
+6418.39
+6015.89
+4934.73
+6124.93
+5471.18
+5923.34
+4493.25
+4712.8
+4402.13
+3118.05
+3065.24
+2402.18
+2493.22
+1726.36
+1974.09
+1828.5
+2124.51
+2124.22
+2402.6
+2400.32
+2557.07
+2992.29
+4021.41
+2768.35
+2719.4
+2897.4
+3374.43
+3600.48
+3007.27
+3117.5
+3073.14
+2730.2
+2416.54
+2195.32
+2515.79
+2504.36
+2533.97
+2782.26
+2544.97
+2560.82
+2652.05
+2758.82
+2883.72
+2941.83
+2659.2
+2730.93
+2639.82
+2384.36
+2170.27
+2204.59
+1989.95
+1837.78
+1926.57
+2067.39
+1884.69
+1975.77
+1963.6
+1746.83
+1645.25
+1630.61
+1632.6
+1671.64
+1604.09
+1765.76
+1811.45
+1769.74
+1672.74
+1602.25
+1650.45
+1354.42
+1342.78
+1440.39
+1461.12
+1442.82
+1520.58
+1469.38
+1361.42
+1396.1
+1380.54
+1329.73
+1361.73
+1405.25
+1552.96
+1637.53
+1835.33
+1946.83
+2155.35
+2614.43
+2600.37
+2755.9
+3280.25
+3931.33
+4186.7
+4223.86
+3302.48
+2792.29
+2253.31
+2452.32
+2463.2
+2531.41
+1911.51
+1869.95
+2037.69
+2085.66
+1976.13
+1992.58
+2006.16
+2166.04
+2150.65
+];
+aperiodicInd_Ret=diff(log(aperiodicInd));
+periodInd_Ret=diff(log(periodInd));
+n=size(periodInd_Ret,1);
+%非周期行业：药品 周期行业：钢铁 时间段：2005年12月31日至2016年9月30日
+Rf=log(Rf(end-n+1:end)+ones(n,1));
+Rmt_Rf=log(Rmt_Rf(end-n+1:end)+ones(n,1));
+X1=[ones(n,1) aperiodicInd_Ret-Rf];
+X2=[ones(n,1) periodInd_Ret-Rf];
+Y=Rmt_Rf;
+tempBeta1=inv(X1'*X1)*X1'*Y;
+tempBeta2=inv(X2'*X2)*X2'*Y;
+apBeta=tempBeta1(2);
+pBeta=tempBeta2(2);
+
+%% 四、CAPM模型的时序检验 2
+load('price.mat')
+BA=zeros(2,10);
+X=[repmat(1,35,1),rm_rf];
+for i=1:10
+   BA(:,i)=inv(X'*X)*X'*logreturn(:,i);
+end
+Beta=BA(1,:)';
+alpha=BA(2,:)';
+Alpha=repmat(BA(2,:)',1,35);
+Rm_rf=rm_rf';
+Logreturn=logreturn';
+e=Logreturn-Beta*Rm_rf-Alpha;
+Sigma=e*e';
+sigma=Sigma/35;
+r_p=mean(logreturn)
+s_p2=logreturn-repmat(r_p,35,1)
+Sp2=sum(s_p2.^2)
+theta=r_p./Sp2
+SIGMA=a*inv(sigma)*alpha
+D=(1+theta*theta')
+GRS=(24*SIGMA)/(10*D)
+p=fpdf(GRS,10,24)
+
+
+%% 五、CAPM模型的横截面检验（用月度数据进行分析）1
+%数据格式：每列为一只股票在时间序列上的收益率，按行从小到大排列好不同代码的股票 P
+%每只股票的代码和名称单独有个cell装 矩阵为Num
+%Rm 代表市场组合时间序列收益率 可以自己载入数据，这里用equally weighted作为组合
+%Rf 代表无风险利率时间序列 可以自己载入数据
+load('ClosePrice.mat')
+Ret=diff(log(ClosePrice));
+M=find(any(isnan(Ret))==1);%
+Stk(M,:)=[];%剩下无缺失值的股票
+Ret(:,(find(any(isnan(Ret))==1)'))=[];%处理数据
+[m,n]=size(Ret);%股票只数 n,时间节点m
+Rm=mean(Ret,2);
+Rf=log(0.04+1)*ones(m,1);
+X=[ones(m,1) Rm-Rf];
+Y=Ret-repmat(Rf,1,n);
+betaTemp=inv(X'*X)*X'*Y;
+beta=betaTemp(2,:);
+[~,index]=sort(beta)
+    h=index(n/2+1:end)%进入高beta组在原组的序号
+    l=index(1:n/2)%进入低beta组在原组的序号
+   highBeta_Ret=Ret(:,h);
+    lowBeta_Ret=Ret(:,l);
+    aveRetH_beta=mean(highBeta_Ret,2);
+    aveRetL_beta=mean(lowBeta_Ret,2);
+    stdH=std(aveRetH_beta);
+    stdL=std(aveRetL_beta);
+    s=sqrt((stdH^2+stdL^2)/m);
+    t=(mean(aveRetH_beta)-mean(aveRetL_beta))/s;
+%% 五、CAPM模型的横截面检验（用月度数据进行分析）2
+%此程序采用二维排序中的序贯排序法，首先将股票beta值作为排序依据，在同一beta下以size分组，以验证size的效应
+%数据：股价P size：S  市场收益率Rm，采用equally weighted作为组合 Rf无风险收益率
+load('ClosePrice.mat')
+PStk=Stk;
+load('dqMv.mat')
+SStk=Stk;
+S=FctMat;
+Ret=100*diff(log(ClosePrice));
+M=find(any(isnan(Ret))==1);%
+PStk(M,:)=[];
+Ret(:,(find(any(isnan(Ret))==1)'))=[];%处理数据
+N=find(any(isnan(S))==1);%
+SStk(N,:)=[];%剩下无缺失值的股票
+S(:,(find(any(isnan(S))==1)'))=[];
+[Q,W]=intersect(PStk(:,1),SStk(:,1));%正好发现两个指标数据之后，剩下的仍然一致，所以这里就不做处理了
+[m,n]=size(Ret);%股票只数 n,时间节点m
+Rm=mean(Ret,2);
+Rf=log(0.04+1)*ones(m,1);
+X=[ones(m,1) Rm-Rf];
+Y=Ret-repmat(Rf,1,n);
+betaTemp=inv(X'*X)*X'*Y;
+beta=betaTemp(2,:);
+[~,index]=sort(beta);
+O=index(n/2-499:n/2+500);%选取其中的1000只股票，去大去小
+data=cell(m,10);
+for i=1:m
+    for j=1:10
+        data{i,j}=cell(10,1);
+       tempS=S(i,O(100*j-99:100*j));
+       tempRet=Ret(i,O(100*j-99:100*j));
+       [~,index2]=sort(tempS);
+       for l=1:10
+       data{i,j}{l,1}=tempRet(index2(10*l-9:10*l));
+       end
+    end   
+    end
+    
+  % (mean(data{1,1}{1,1})- mean(data{1,1}{10,1}))/sqrt((var(data{1,1}{1,1})+var(data{1,1}{10,1}))/2)
+%是不是会随size变化而变化
+%% 
+%% 
